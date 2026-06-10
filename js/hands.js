@@ -81,6 +81,7 @@ function onResults(results){
     pianoKeys.forEach(key => {
 
         key.pressed = false;
+        key.isPressed = false; // 2026.06.10 CES 추가
 
     });
 
@@ -158,9 +159,44 @@ function onResults(results){
             monitorHeight
         );
 
+        // 2026.06.10 CES 추가(시작)
+        const frameIndex = nextCollisionFrameIndex();
 
 
-        // 건반 수정 부분
+        // 여러 손가락의 건반 충돌 판정을 수행하는 함수 호출
+        const collisionResults = processFingerKeySelections(
+            fingerList,
+            pianoKeys,
+            frameIndex
+        );
+
+        collisionResults.forEach(result => {
+
+            canvasCtx.beginPath();
+
+            canvasCtx.arc(
+                result.fingerTipX,
+                result.fingerTipY,
+                8,
+                0,
+                Math.PI * 2
+            );
+
+            canvasCtx.fillStyle =
+                result.collisionState === "selected"
+                    ? "cyan"
+                    : "rgba(0,255,255,0.35)";
+
+            canvasCtx.fill();
+
+        });
+
+        window.latestCollisionResults = collisionResults;
+
+    } // 2026.06.10 CES 추가(끝)
+
+
+        /* 건반 수정 부분
 
         fingerList.forEach(finger => {
 
@@ -225,7 +261,7 @@ function onResults(results){
 
         });
 
-    }
+    } */
 
     // 흰 건반 렌더링
 
@@ -275,7 +311,7 @@ function onResults(results){
                 canvasCtx.fillText(
                     key.pitch,
                     key.x + (key.width / 2) - 10,
-                    key.y + key.height - 20
+                    key.y + key.height - 180
                 );
             }
         });
