@@ -40,6 +40,7 @@ class TrackingManager {
         this.FramePerSecond = 0;
 
         this.FrameLatency = 0;
+
     }
 
     // ======================

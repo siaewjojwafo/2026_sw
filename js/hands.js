@@ -10,6 +10,11 @@ const canvasCtx =
 const tracker =
     new TrackingManager(); //윤나영 5.30추가
 
+const pressAnalyzer =
+    new PressAnalyzer();    //이가인 06.12 추가
+
+window.pressAnalyzer = pressAnalyzer; //이가인 06.12 추가
+
 
 // 피아노 생성
 
@@ -78,10 +83,9 @@ function onResults(results){
     canvasCtx.restore();
 
 
+    //이가인 06.12 추가
     pianoKeys.forEach(key => {
-
         key.pressed = false;
-
     });
 
     // 손가락 위치 계산
@@ -160,55 +164,22 @@ function onResults(results){
 
 
 
-        // 건반 수정 부분
+        const canvasFingerPoints = fingerList.map(finger =>
 
-        fingerList.forEach(finger => {
-
-            const canvasPoint = monitorToCanvas(
+            monitorToCanvas(
                 finger.x,
                 finger.y
-            );
+            )
 
-            let blackKeyPressed = false;
+        );
 
-            pianoKeys
-                .filter(key => key.keyType === "black")
-                .forEach(key => {
+        // 06.12 이가인 수정
+        pressAnalyzer.processFrame(
+            pianoKeys,
+            canvasFingerPoints
+        );
 
-                    if (
-                        canvasPoint.x > key.x &&
-                        canvasPoint.x < key.x + key.width &&
-                        canvasPoint.y > key.y &&
-                        canvasPoint.y < key.y + key.height
-                    ) {
-
-                        key.pressed = true;
-                        blackKeyPressed = true;
-
-                    }
-
-                });
-
-            if (!blackKeyPressed) {
-
-                pianoKeys
-                    .filter(key => key.keyType === "white")
-                    .forEach(key => {
-
-                        if (
-                            canvasPoint.x > key.x &&
-                            canvasPoint.x < key.x + key.width &&
-                            canvasPoint.y > key.y &&
-                            canvasPoint.y < key.y + key.height
-                        ) {
-
-                            key.pressed = true;
-
-                        }
-
-                    });
-
-            }
+        canvasFingerPoints.forEach(canvasPoint => {
 
             canvasCtx.beginPath();
 
@@ -225,6 +196,13 @@ function onResults(results){
 
         });
 
+    } else {
+
+        pressAnalyzer.processFrame(
+            pianoKeys,
+            []
+        );
+
     }
 
     // 흰 건반 렌더링
@@ -233,7 +211,7 @@ function onResults(results){
         .filter(key => key.keyType === "white")
         .forEach(key => {
 
-            canvasCtx.fillStyle = key.pressed ? key.activeColor : key.idleColor;
+            canvasCtx.fillStyle = pressAnalyzer.getVisualColor(key);    //06.12 이가인 수정
 
             canvasCtx.fillRect(
 
@@ -245,6 +223,7 @@ function onResults(results){
 
             );
 
+            pressAnalyzer.drawLongPressGauge(canvasCtx, key);   //06.12 이가인 추가
 
             canvasCtx.strokeStyle = "rgba(255,255,255,0.25)";
 
@@ -285,7 +264,7 @@ function onResults(results){
         .filter(key => key.keyType === "black")
         .forEach(key => {
 
-            canvasCtx.fillStyle = key.pressed ? key.activeColor : key.idleColor;
+            canvasCtx.fillStyle = pressAnalyzer.getVisualColor(key);
 
             canvasCtx.fillRect(
 
@@ -295,6 +274,9 @@ function onResults(results){
                 key.width,
                 key.height
             );
+
+            pressAnalyzer.drawLongPressGauge(canvasCtx, key);
+
             // 2. [SRS 4.4 ] 검은 건반에도 라벨 표시
 
             if (showLabels) {
@@ -372,6 +354,28 @@ function onResults(results){
         70
 
     );
+
+
+    //06.12 이가인 추가
+    const latestStyle = pressAnalyzer.getLatestPlayStyle();
+
+    if (latestStyle) {
+
+        const styleLabel =
+            latestStyle.gestureTypeLabel === "Short"
+                ? "Staccato"
+                : "Long Press";
+
+        canvasCtx.fillText(
+
+            `Last: ${latestStyle.pitch} ${styleLabel} (${latestStyle.finalNoteDuration.toFixed(0)}ms)`,
+
+            20,
+            100
+
+        );
+
+    }
 
 }
 
