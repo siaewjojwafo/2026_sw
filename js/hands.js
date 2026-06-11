@@ -185,6 +185,109 @@ function onResults(results){
                         key.pressed = true;
                         blackKeyPressed = true;
 
+                        // ===== SRS 6 시작 =====
+
+                            const fingerID =
+                                `${finger.handId}_${finger.fingerIndex}`;
+
+                            if(!tracker.previousFingerData[fingerID]){
+                                tracker.previousFingerData[fingerID] = {};
+                            }
+
+                            const fingerState =
+                                tracker.previousFingerData[fingerID];
+
+                            const currentTime =
+                                performance.now();
+
+                            const deltaTime =
+                                fingerState.lastTime
+                                ?
+                                (currentTime - fingerState.lastTime) / 1000
+                                :
+                                0.016;
+
+                            const pressDetected =
+                                tracker.detectPressByDepth(
+                                    finger.z,
+                                    fingerState.previousZ,
+                                    tracker.pressThreshold
+                                );
+
+                            const zVelocity =
+                                tracker.calculateZVelocity(
+                                    finger.z,
+                                    fingerState.previousZ,
+                                    deltaTime
+                                );
+
+                            const landmarks =
+                                results.multiHandLandmarks[
+                                    finger.handId
+                                ];
+
+                            const distanceRatio =
+                                tracker.calculateDistanceRatio(
+                                    landmarks[8],
+                                    landmarks[6]
+                                );
+
+                            const inflectionResult =
+                                tracker.detectYInflectionPoint(
+                                    finger.y,
+                                    fingerState.previousY,
+                                    fingerState.previousVelocity || 0,
+                                    deltaTime
+                                );
+
+                            if(
+                                pressDetected &&
+                                Math.abs(zVelocity) >
+                                tracker.velocityThreshold &&
+                                inflectionResult.inflection
+                            ){
+
+                                tracker.generateNoteEvent(
+                                    key.keyID,
+                                    key.pitch,
+                                    true,
+                                    Math.abs(zVelocity)
+                                );
+
+                                fingerState.isPressed = true;
+
+                            }
+
+                            if(
+                                !pressDetected &&
+                                fingerState.isPressed
+                            ){
+
+                                tracker.generateNoteEvent(
+                                    key.keyID,
+                                    key.pitch,
+                                    false,
+                                    0
+                                );
+
+                                fingerState.isPressed = false;
+                            }
+
+                            fingerState.previousZ =
+                                finger.z;
+
+                            fingerState.previousY =
+                                finger.y;
+
+                            fingerState.previousVelocity =
+                                inflectionResult.yVelocity;
+
+                            fingerState.lastTime =
+                                currentTime;
+
+                            // ===== SRS 6 끝 =====
+
+
                     }
 
                 });
@@ -203,6 +306,92 @@ function onResults(results){
                         ) {
 
                             key.pressed = true;
+
+                            // ===== SRS 6 시작 =====
+
+                                const fingerID =
+                                    `${finger.handId}_${finger.fingerIndex}`;
+
+                                if(!tracker.previousFingerData[fingerID]){
+                                    tracker.previousFingerData[fingerID] = {};
+                                }
+
+                                const fingerState =
+                                    tracker.previousFingerData[fingerID];
+
+                                const currentTime =
+                                    performance.now();
+
+                                const deltaTime =
+                                    fingerState.lastTime
+                                    ?
+                                    (currentTime - fingerState.lastTime) / 1000
+                                    :
+                                    0.016;
+
+                                const pressDetected =
+                                    tracker.detectPressByDepth(
+                                        finger.z,
+                                        fingerState.previousZ,
+                                        tracker.pressThreshold
+                                    );
+
+                                const zVelocity =
+                                    tracker.calculateZVelocity(
+                                        finger.z,
+                                        fingerState.previousZ,
+                                        deltaTime
+                                    );
+
+                                const landmarks =
+                                    results.multiHandLandmarks[
+                                        finger.handId
+                                    ];
+
+                                const distanceRatio =
+                                    tracker.calculateDistanceRatio(
+                                        landmarks[8],
+                                        landmarks[6]
+                                    );
+
+                                const inflectionResult =
+                                    tracker.detectYInflectionPoint(
+                                        finger.y,
+                                        fingerState.previousY,
+                                        fingerState.previousVelocity || 0,
+                                        deltaTime
+                                    );
+
+                                if(
+                                    pressDetected &&
+                                    Math.abs(zVelocity) >
+                                    tracker.velocityThreshold &&
+                                    inflectionResult.inflection
+                                ){
+
+                                    tracker.generateNoteEvent(
+                                        key.keyID,
+                                        key.pitch,
+                                        true,
+                                        Math.abs(zVelocity)
+                                    );
+
+                                }
+
+                                fingerState.previousZ =
+                                    finger.z;
+
+                                fingerState.previousY =
+                                    finger.y;
+
+                                fingerState.previousVelocity =
+                                    inflectionResult.yVelocity;
+
+                                fingerState.lastTime =
+                                    currentTime;
+
+                                // ===== SRS 6 끝 =====
+
 
                         }
 
