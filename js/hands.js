@@ -10,7 +10,8 @@ const canvasCtx =
 const tracker =
     new TrackingManager(); //윤나영 5.30추가
 
-
+// [SRS 7.3.1] 손가락별 이전 좌표를 저장하여 입력 강도(velocity)를 계산
+const previousFingerPositions = {};
 // 피아노 생성
 
 createPianoKeys(
@@ -77,6 +78,7 @@ function onResults(results){
     canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
     canvasCtx.restore();
 
+    const pressedKeyStates = new Map();
 
     pianoKeys.forEach(key => {
 
@@ -169,7 +171,20 @@ function onResults(results){
                 finger.y
             );
 
-            let blackKeyPressed = false;
+            const fingerTrackId = `${finger.handId}_${finger.fingerIndex}`;
+                        const previousFinger = previousFingerPositions[fingerTrackId];
+                        const velocityValue = pianoAudioEngine.calculateVelocity(
+                            finger,
+                            previousFinger
+                        );
+
+                        previousFingerPositions[fingerTrackId] = {
+                            x: finger.x,
+                            y: finger.y,
+                            z: finger.z
+                        };
+
+                        let selectedKey = null;
 
             pianoKeys
                 .filter(key => key.keyType === "black")
@@ -181,15 +196,12 @@ function onResults(results){
                         canvasPoint.y > key.y &&
                         canvasPoint.y < key.y + key.height
                     ) {
-
-                        key.pressed = true;
-                        blackKeyPressed = true;
-
+                        selectedKey = key;
                     }
 
                 });
 
-            if (!blackKeyPressed) {
+            if (!selectedKey) {
 
                 pianoKeys
                     .filter(key => key.keyType === "white")
@@ -202,13 +214,24 @@ function onResults(results){
                             canvasPoint.y < key.y + key.height
                         ) {
 
-                            key.pressed = true;
+                            selectedKey = key;
 
                         }
 
                     });
 
             }
+            if(selectedKey){
+            const previousPressedState = pressedKeyStates.get(selectedKey.keyID);
+            const nextVelocity = previousPressedState ? Math.max(previousPressedState.velocityValue, velocityValue) : velocityValue;
+            pressedKeyStates.set(selectedKey.keyID,
+               { keyId: selectedKey.keyID,
+                noteName: selectedKey.pitch,
+                pressState: true,
+                velocityValue: nextVelocity
+                });
+            }
+
 
             canvasCtx.beginPath();
 
@@ -226,6 +249,8 @@ function onResults(results){
         });
 
     }
+     // [SRS 7.1~7.3] 이번 프레임의 눌림 상태를 오디오 엔진에 전달하여 재생/릴리즈/시각화를 동기화
+        pianoAudioEngine.syncPressedKeys(pressedKeyStates);
 
     // 흰 건반 렌더링
 

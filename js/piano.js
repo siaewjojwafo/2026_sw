@@ -118,6 +118,10 @@ function createPianoKeys(canvasWidth, canvasHeight){
 
     window.keyCount = pianoKeys.length;
 }
+// [SRS 7.1.1] 건반 생성/변경 시 각 건반 음원 매핑과 캐시 상태를 갱신
+    if(typeof pianoAudioEngine !== "undefined"){
+        pianoAudioEngine.preload(pianoKeys);
+    }
 
 // [SRS 4.4 INTERFACE FUNCTIONS] HTML 조작과 연결될 환경 변경 함수들
 function changeOctaveRange(octave) {
