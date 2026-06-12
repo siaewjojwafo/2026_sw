@@ -19,37 +19,33 @@ function createPianoKeys(canvasWidth, canvasHeight){
     let midiNumbers = [];
     let blackKeysData = [];
 
-    // 06.07 YHW 수정
     if (currentOctave === 1) {
-        whiteNotes = ["C5", "B4", "A4", "G4", "F4", "E4", "D4", "C4"];
-        midiNumbers = [72, 71, 69, 67, 65, 64, 62, 60];
-
+        // 1옥타브 세팅 (가온 다 C4 ~ C5)
+        whiteNotes = ["C4", "D4", "E4", "F4", "G4", "A4", "B4", "C5"];
+        midiNumbers = [60, 62, 64, 65, 67, 69, 71, 72];
         blackKeysData = [
-            { note: "A#4", midi: 70, pos: 5 },
-            { note: "G#4", midi: 68, pos: 4 },
-            { note: "F#4", midi: 66, pos: 3 },
+            { note: "C#4", midi: 61, pos: 0 },
             { note: "D#4", midi: 63, pos: 1 },
-            { note: "C#4", midi: 61, pos: 0 }
+            { note: "F#4", midi: 66, pos: 3 },
+            { note: "G#4", midi: 68, pos: 4 },
+            { note: "A#4", midi: 70, pos: 5 }
         ];
     } else {
-          whiteNotes = [
-              "C6", "B5", "A5", "G5", "F5", "E5", "D5", "C5", "B4", "A4", "G4", "F4", "E4", "D4", "C4"
-          ];
-          midiNumbers = [
-              84, 83, 81, 79, 77, 76, 74, 72, 71, 69, 67, 65, 64, 62, 60
-          ];
-          blackKeysData = [
-              { note: "A#5", midi: 82, pos: 12 },
-              { note: "G#5", midi: 80, pos: 11 },
-              { note: "F#5", midi: 78, pos: 10 },
-              { note: "D#5", midi: 75, pos: 8 },
-              { note: "C#5", midi: 73, pos: 7 },
-              { note: "A#4", midi: 70, pos: 5 },
-              { note: "G#4", midi: 68, pos: 4 },
-              { note: "F#4", midi: 66, pos: 3 },
-              { note: "D#4", midi: 63, pos: 1 },
-              { note: "C#4", midi: 61, pos: 0 }
-          ];
+        // 2옥타브 세팅 (C4 ~ C6 전개)
+        whiteNotes = ["C4", "D4", "E4", "F4", "G4", "A4", "B4", "C5", "D5", "E5", "F5", "G5", "A5", "B5", "C6"];
+        midiNumbers = [60, 62, 64, 65, 67, 69, 71, 72, 74, 76, 77, 79, 81, 83, 84];
+        blackKeysData = [
+            { note: "C#4", midi: 61, pos: 0 },
+            { note: "D#4", midi: 63, pos: 1 },
+            { note: "F#4", midi: 66, pos: 3 },
+            { note: "G#4", midi: 68, pos: 4 },
+            { note: "A#4", midi: 70, pos: 5 },
+            { note: "C#5", midi: 73, pos: 7 },
+            { note: "D#5", midi: 75, pos: 8 },
+            { note: "F#5", midi: 78, pos: 10 },
+            { note: "G#5", midi: 80, pos: 11 },
+            { note: "A#5", midi: 82, pos: 12 }
+        ];
     }
 
     const whiteKeyCount = whiteNotes.length;

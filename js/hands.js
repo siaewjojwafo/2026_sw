@@ -272,10 +272,11 @@ function onResults(results){
             if (showLabels) {
                 canvasCtx.fillStyle = "black";
                 canvasCtx.font = "18px Arial";
+                const labelY = (currentOctave === 1) ? key.y + key.height -250 : key.y + key.height -180;
                 canvasCtx.fillText(
                     key.pitch,
                     key.x + (key.width / 2) - 10,
-                    key.y + key.height - 180
+                    labelY
                 );
             }
         });
