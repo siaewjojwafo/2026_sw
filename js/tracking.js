@@ -46,7 +46,7 @@ class TrackingManager {
 
         this.previousFingerData = {};
 
-        this.pressThreshold = 0.03;
+        this.pressThreshold = 0.005;
         this.velocityThreshold = 0.5;
 
         this.calibrationFactor = 1.0;

@@ -151,7 +151,7 @@ function trackMultipleFingers(
     monitorHeight
 ){
     const fingerList = [];
-    const fingerIndexes = [4, 8, 12, 16, 20];
+    const fingerIndexes = [4, 8, 12, 16, 20]; // 26.06.20 윤혜원 수정
 
     multiHandLandmarks.forEach((handLandmarks, handIndex) => {
 

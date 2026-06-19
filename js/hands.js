@@ -97,6 +97,7 @@ function processFingerKeySelections(fingerList, pianoKeys, frameIndex, pressedKe
 
         let collisionState = "none";
         // 4. 선택된 건반이 존재할 경우 처리
+        // 26.06.20 윤혜원 수정
         if (selectedKey) {
             collisionState = "selected";
             selectedKey.pressed = true;
@@ -106,11 +107,16 @@ function processFingerKeySelections(fingerList, pianoKeys, frameIndex, pressedKe
             const fingerID = `${finger.handId}_${finger.fingerIndex}`;
             if (!tracker.previousFingerData[fingerID]) tracker.previousFingerData[fingerID] = {};
             const fingerState = tracker.previousFingerData[fingerID];
+            // 26.06.20 윤혜원 수정
+            const deltaY = fingerState.previousY === undefined ? 0 : finger.y - fingerState.previousY;
             const deltaTime = fingerState.lastTime ? (currentTime - fingerState.lastTime) / 1000 : 0.016;
 
             const pressDetected = tracker.detectPressByDepth(finger.z, fingerState.previousZ, tracker.pressThreshold);
             const zVelocity = tracker.calculateZVelocity(finger.z, fingerState.previousZ, deltaTime);
             const inflectionResult = tracker.detectYInflectionPoint(finger.y, fingerState.previousY, fingerState.previousVelocity || 0, deltaTime);
+            // 26.06.20 yhw 수정
+            console.log(deltaY);
+            const validPress = finger.fingerIndex === 4 ? deltaY > 1 : deltaY > 3;
 
             if (pressDetected && Math.abs(zVelocity) > tracker.velocityThreshold && inflectionResult.inflection) {
                 tracker.generateNoteEvent(selectedKey.keyID, selectedKey.pitch, true, Math.abs(zVelocity));
@@ -130,12 +136,15 @@ function processFingerKeySelections(fingerList, pianoKeys, frameIndex, pressedKe
             const previousPressedState = pressedKeyStates.get(selectedKey.keyID);
             const nextVelocity = previousPressedState ? Math.max(previousPressedState.velocityValue, velocityValue) : velocityValue;
 
-            pressedKeyStates.set(selectedKey.keyID, {
-                keyId: selectedKey.keyID,
-                noteName: selectedKey.pitch,
-                pressState: true,
-                velocityValue: nextVelocity
-            });
+            // 26.06.20 윤혜원 수정
+            if (validPress) {
+                pressedKeyStates.set(selectedKey.keyID, {
+                    keyId: selectedKey.keyID,
+                    noteName: selectedKey.pitch,
+                    pressState: true,
+                    velocityValue: nextVelocity
+                });
+            }
         }
 
         results.push({
@@ -205,6 +214,8 @@ function onResults(results){
         if (typeof nextCollisionFrameIndex !== 'undefined') frameIndex = nextCollisionFrameIndex();
 
         const collisionResults = processFingerKeySelections(fingerList, pianoKeys, frameIndex, pressedKeyStates);
+
+
 
         // hand8: PressAnalyzer 프레임 처리 (06.12 이가인 로직)
         pressAnalyzer.processFrame(pianoKeys, canvasFingerPoints);
