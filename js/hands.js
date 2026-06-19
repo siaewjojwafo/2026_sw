@@ -116,7 +116,7 @@ function processFingerKeySelections(fingerList, pianoKeys, frameIndex, pressedKe
             const inflectionResult = tracker.detectYInflectionPoint(finger.y, fingerState.previousY, fingerState.previousVelocity || 0, deltaTime);
             // 26.06.20 yhw 수정
             console.log(deltaY);
-            const validPress = finger.fingerIndex === 4 ? deltaY > 1 : deltaY > 3;
+            const validPress = finger.fingerIndex === 4 ? deltaY > 8 : deltaY > 3;
 
             if (pressDetected && Math.abs(zVelocity) > tracker.velocityThreshold && inflectionResult.inflection) {
                 tracker.generateNoteEvent(selectedKey.keyID, selectedKey.pitch, true, Math.abs(zVelocity));
