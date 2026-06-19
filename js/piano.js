@@ -57,14 +57,14 @@ function createPianoKeys(canvasWidth, canvasHeight){
     const blackKeyHeight = whiteKeyHeight * blackKeyHeightRatio;
 
     // 1. 흰 건반 생성
-    for(let i = 0; i < whiteKeyCount; i++){
-        // 2026.06.07 YHW 수정
+    for(let i = 0; i < whiteKeyCount; i++){ // 2026.06.07 YHW 수정
         const left = (whiteKeyCount - 1 - i) * whiteKeyWidth;
         const blackBottom = canvasHeight * KEY_BOTTOM_RATIO;
         const blackTop = blackBottom - blackKeyHeight;
         const bottom = blackBottom;
         const top = bottom - whiteKeyHeight;
         const right = left + whiteKeyWidth;
+
 
         pianoKeys.push({
             keyID: i,
@@ -76,8 +76,8 @@ function createPianoKeys(canvasWidth, canvasHeight){
             y: top,
             width: whiteKeyWidth,
             height: whiteKeyHeight,
-            zIndex: 2,                                  
-            touchPadding: 5,                            
+            zIndex: 2,
+            touchPadding: 5,
             isPressed: false,
             idleColor: "rgba(255, 255, 255, 0.65)",
             activeColor: "rgba(180, 180, 180, 0.85)"
@@ -85,8 +85,7 @@ function createPianoKeys(canvasWidth, canvasHeight){
     }
 
     // 2. 검은 건반 생성
-    blackKeysData.forEach((key, index) => {
-        // 2026.06.07 YHW 수정
+    blackKeysData.forEach((key, index) => { // 2026.06.07 YHW 수정
         const mirroredPos = whiteKeyCount - 2 - key.pos;
         const left = (mirroredPos + 1) * whiteKeyWidth - blackKeyWidth / 2;
         const whiteTop = canvasHeight * KEY_BOTTOM_RATIO;
@@ -104,9 +103,9 @@ function createPianoKeys(canvasWidth, canvasHeight){
             y: top,
             width: blackKeyWidth,
             height: blackKeyHeight,
-            zIndex: 2,                                  
-            touchPadding: 3,                            
-            isPressed: false,                           
+            zIndex: 2,
+            touchPadding: 3,
+            isPressed: false,
             idleColor: "rgba(0, 0, 0, 0.65)",
             activeColor: "rgba(139, 0, 0, 0.95)"
         });
@@ -114,12 +113,19 @@ function createPianoKeys(canvasWidth, canvasHeight){
 
     window.keyCount = pianoKeys.length;
 }
+    // [SRS 7.1.1] 건반 생성/변경 시 각 건반 음원 매핑과 캐시 상태를 갱신
+    if(typeof pianoAudioEngine !== "undefined"){
+        pianoAudioEngine.preload(pianoKeys);
+}
 
 // [SRS 4.4 INTERFACE FUNCTIONS] HTML 조작과 연결될 환경 변경 함수들
 function changeOctaveRange(octave) {
     currentOctave = octave;
     // 옥타브가 바뀌면 기존 화면 크기를 기반으로 건반을 새로 동적 생성합니다.
     createPianoKeys(lastCanvasWidth, lastCanvasHeight);
+    if (typeof pressAnalyzer !== "undefined") {
+        pressAnalyzer.reset();  //이가인 06.12 추가
+    }
     console.log(`[SRS 4.4] 건반 개수 조절 완료: ${octave}옥타브`);
 }
 

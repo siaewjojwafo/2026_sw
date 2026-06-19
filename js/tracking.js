@@ -40,6 +40,20 @@ class TrackingManager {
         this.FramePerSecond = 0;
 
         this.FrameLatency = 0;
+
+         // SRS 6.~ 변수
+
+
+        this.previousFingerData = {};
+
+        this.pressThreshold = 0.03;
+        this.velocityThreshold = 0.5;
+
+        this.calibrationFactor = 1.0;
+
+        this.inflectionPointDelta = 0.002;
+
+        this.noteEvents = [];
     }
 
     // ======================
@@ -317,6 +331,171 @@ class TrackingManager {
 
             currentTime;
 
+    }
+ //====================
+    //srs6번추가
+    //====================
+
+    detectPressByDepth(
+        landmark_z,
+        previousZ,
+        pressThreshold
+    ){
+
+        if(previousZ === undefined){
+
+            return false;
+        }
+
+        const currentZVelocity =
+            landmark_z - previousZ;
+
+        return currentZVelocity < -pressThreshold;
+    }
+
+    calculateZVelocity(
+        landmark_z,
+        previousZ,
+        deltaTime
+    ){
+
+        if(
+            previousZ === undefined ||
+            deltaTime <= 0
+        ){
+            return 0;
+        }
+
+        const deltaZ =
+            landmark_z - previousZ;
+
+        const zVelocity =
+            deltaZ / deltaTime;
+
+        return zVelocity;
+    }
+
+    calculateDistanceRatio(
+        fingerTip,
+        firstJoint
+    ){
+
+        const fingerTipToJointDistance =
+            Math.sqrt(
+
+                Math.pow(
+                    fingerTip.x - firstJoint.x,
+                    2
+                )
+
+                +
+
+                Math.pow(
+                    fingerTip.y - firstJoint.y,
+                    2
+                )
+
+                +
+
+                Math.pow(
+                    fingerTip.z - firstJoint.z,
+                    2
+                )
+
+            );
+
+        const distanceRatio =
+            fingerTipToJointDistance *
+            this.calibrationFactor;
+
+        return distanceRatio;
+    }
+
+    detectYInflectionPoint(
+        fingerTipY,
+        previousY,
+        previousVelocity,
+        deltaTime
+    ){
+
+        if(
+            previousY === undefined ||
+            deltaTime <= 0
+        ){
+            return {
+                yVelocity:0,
+                yAcceleration:0,
+                inflection:false
+            };
+        }
+
+        const yVelocity =
+            (fingerTipY - previousY)
+            /
+            deltaTime;
+
+        const yAcceleration =
+            (yVelocity - previousVelocity)
+            /
+            deltaTime;
+
+        const inflection =
+
+            Math.abs(
+                yAcceleration
+            )
+
+            >
+
+            this.inflectionPointDelta;
+
+        return {
+
+            yVelocity,
+            yAcceleration,
+            inflection
+
+        };
+    }
+
+    generateNoteEvent(
+        keyId,
+        noteName,
+        pressState,
+        velocityValue
+    ){
+
+        const eventType =
+            pressState
+            ?
+            "NOTE_ON"
+            :
+            "NOTE_OFF";
+
+        const eventObject = {
+
+            type:eventType,
+
+            keyId:keyId,
+
+            noteName:noteName,
+
+            velocityValue:velocityValue,
+
+            timestamp:Date.now()
+
+        };
+
+        this.noteEvents.push(
+            eventObject
+        );
+
+        console.log(
+            "[SRS6 EVENT]",
+            eventObject
+        );
+
+        return eventObject;
     }
 
 }

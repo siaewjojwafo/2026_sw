@@ -2,79 +2,79 @@
 <html lang="ko">
 
 <head>
-  <meta charset="UTF-8">
-  <title>Virtual Piano</title>
+    <meta charset="UTF-8">
+    <title>Virtual Piano</title>
 
-  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
 
-  <style>
+    <style>
 
-    body{
-        margin:0;
-        padding:0;
-        background:#111;
-        color:white;
-        font-family:Arial;
-        text-align:center;
-    }
+        body{
+            margin:0;
+            padding:0;
+            background:#111;
+            color:white;
+            font-family:Arial;
+            text-align:center;
+        }
 
-    h1{
-        margin-top:20px;
-        margin-bottom:10px;
-    }
+        h1{
+            margin-top:20px;
+            margin-bottom:10px;
+        }
 
-    .container{
-        position:relative;
-        width:1000px;
-        margin:auto;
-    }
+        .container{
+            position:relative;
+            width:1000px;
+            margin:auto;
+        }
 
-    video{
-        display:none;
-    }
+        video{
+            display:none;
+        }
 
-    .output_canvas{
-        width:1000px;
-        height:700px;
-        border:2px solid white;
-        border-radius:10px;
-        background:black;
-    }
+        .output_canvas{
+            width:1000px;
+            height:700px;
+            border:2px solid white;
+            border-radius:10px;
+            background:black;
+        }
 
-    /*  [SRS 4.4] 연주 환경 맞춤형 UI 제어 패널 스타일 컨트롤 디자인 추가 */
+        /*  [SRS 4.4] 연주 환경 맞춤형 UI 제어 패널 스타일 컨트롤 디자인 추가 */
 
-    #piano-controls {
-        width: 976px; /* 캔버스 너비 1000px에서 패딩/테두리 여백을 고려한 최적 크기 */
-        margin: 0 auto 15px auto;
-        padding: 10px 12px;
-        background: #222;
-        border: 1px solid #444;
-        border-radius: 8px;
-        display: flex;
-        gap: 30px;
-        align-items: center;
-        justify-content: flex-start;
-        font-size: 14px;
-    }
+        #piano-controls {
+            width: 976px; /* 캔버스 너비 1000px에서 패딩/테두리 여백을 고려한 최적 크기 */
+            margin: 0 auto 15px auto;
+            padding: 10px 12px;
+            background: #222;
+            border: 1px solid #444;
+            border-radius: 8px;
+            display: flex;
+            gap: 30px;
+            align-items: center;
+            justify-content: flex-start;
+            font-size: 14px;
+        }
 
-    #piano-controls strong {
-        color: #00FF00; /* 미디어파이프 초록색 뼈대 색상과 통일감 조성 */
-    }
+        #piano-controls strong {
+            color: #00FF00; /* 미디어파이프 초록색 뼈대 색상과 통일감 조성 */
+        }
 
-    #piano-controls label {
-        cursor: pointer;
-        margin-right: 5px;
-    }
+        #piano-controls label {
+            cursor: pointer;
+            margin-right: 5px;
+        }
 
-    #piano-controls input[type="radio"], 
-    #piano-controls input[type="checkbox"] {
-        cursor: pointer;
-        accent-color: #00FF00; /* 체크박스 포커스 색상 매핑 */
-    }
+        #piano-controls input[type="radio"],
+        #piano-controls input[type="checkbox"] {
+            cursor: pointer;
+            accent-color: #00FF00; /* 체크박스 포커스 색상 매핑 */
+        }
 
-  </style>
+    </style>
 
 </head>
 
@@ -84,35 +84,37 @@
 
 <div class="container">
 
-  <div id="piano-controls">
-      <strong> 연주 환경 설정 </strong>
-      
-      <div>
-          <span>건반 범위 선택: </span>
-          <input type="radio" id="octave1" name="octaveRange" value="1" checked onchange="changeOctaveRange(1)">
-          <label for="octave1">1옥타브 (8건반)</label>
-          <input type="radio" id="octave2" name="octaveRange" value="2" onchange="changeOctaveRange(2)">
-          <label for="octave2">2옥타브 (15건반)</label>
-      </div>
+    <div id="piano-controls">
+        <strong> 연주 환경 설정 </strong>
 
-      <div>
-          <input type="checkbox" id="showLabelsToggle" checked onchange="toggleLabels(this.checked)">
-          <label for="showLabelsToggle">건반 음계 라벨(C, D, E...) 표시 가이드 활성화</label>
-      </div>
-  </div>
+        <div>
+            <span>건반 범위 선택: </span>
+            <input type="radio" id="octave1" name="octaveRange" value="1" checked onchange="changeOctaveRange(1)">
+            <label for="octave1">1옥타브 (8건반)</label>
+            <input type="radio" id="octave2" name="octaveRange" value="2" onchange="changeOctaveRange(2)">
+            <label for="octave2">2옥타브 (15건반)</label>
+        </div>
 
-  <video class="input_video"></video>
+        <div>
+            <input type="checkbox" id="showLabelsToggle" checked onchange="toggleLabels(this.checked)">
+            <label for="showLabelsToggle">건반 음계 라벨(C, D, E...) 표시 가이드 활성화</label>
+        </div>
+    </div>
 
-  <canvas
-          class="output_canvas"
-          width="1000"
-          height="700">
-  </canvas>
+    <video class="input_video"></video>
+
+    <canvas
+            class="output_canvas"
+            width="1000"
+            height="700">
+    </canvas>
 
 </div>
 
 <script src="./js/piano.js"></script>
+<script src="./js/audio.js"></script>
 <script src="./js/tracking.js"></script>  <!--윤나영 05.30 추가-->
+<script src="./js/pressAnalysis.js"></script> <!--이가인 06.12 추가-->
 <script src="./js/coordinate.js"></script>
 <script src="./js/hands.js"></script>
 
