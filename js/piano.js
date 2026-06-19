@@ -120,6 +120,9 @@ function changeOctaveRange(octave) {
     currentOctave = octave;
     // 옥타브가 바뀌면 기존 화면 크기를 기반으로 건반을 새로 동적 생성합니다.
     createPianoKeys(lastCanvasWidth, lastCanvasHeight);
+    if (typeof pressAnalyzer !== "undefined") {
+        pressAnalyzer.reset();  //이가인 06.12 추가
+    }
     console.log(`[SRS 4.4] 건반 개수 조절 완료: ${octave}옥타브`);
 }
 
