@@ -5,12 +5,13 @@ const videoElement = document.getElementsByClassName('input_video')[0];
 const canvasElement = document.getElementsByClassName('output_canvas')[0];
 const canvasCtx = canvasElement.getContext('2d');
 
-const tracker = new TrackingManager(); // 윤나영 5.30 추가
+const tracker = new TrackingManager();       // 윤나영 5.30 추가
 const pressAnalyzer = new PressAnalyzer();   // 이가인 06.12 추가
 window.pressAnalyzer = pressAnalyzer;
 
-// 손가락별 이전 좌표를 저장하여 입력 강도(velocity)를 계산 (hand4+7)
+// 손가락별 이전 좌표를 저장하여 입력 강도를 계산 (hand4+7)
 const previousFingerPositions = {};
+const TOUCH_CIRCLE_FULL_HOLD_MS = 2000; //이가인 06.21 추가
 
 // 피아노 생성
 createPianoKeys(canvasElement.width, canvasElement.height);
@@ -20,6 +21,10 @@ if (typeof pianoAudioEngine !== 'undefined' && pianoAudioEngine.preload) {
     pianoAudioEngine.preload(pianoKeys);
 }
 
+//[추가] 가이드 모드에서 건반을 새로 눌렀을 때(1회만) 판정하기 위한 추적 변수
+const activeTouchKeyIDs = new Set();
+const validlyPressedKeyIDs = new Set();
+
 // ==========================================
 // [2] 좌표 변환 및 ROI 영역 함수
 // ==========================================
@@ -27,13 +32,13 @@ if (typeof pianoAudioEngine !== 'undefined' && pianoAudioEngine.preload) {
 function monitorToCanvas(x, y){
     const mWidth = typeof monitorWidth !== 'undefined' ? monitorWidth : canvasElement.width;
     const mHeight = typeof monitorHeight !== 'undefined' ? monitorHeight : canvasElement.height;
-
+    
     const cx = (x / mWidth) * canvasElement.width;
     const cy = (y / mHeight) * canvasElement.height;
-
+    
     // 보는 사람 기준으로 오른쪽으로 쏠리는 오차를 대칭축 변환(width - cx)으로 정확하게 잡아냅니다.
     return {
-        x: canvasElement.width - cx,
+        x: canvasElement.width - cx, 
         y: cy
     };
 }
@@ -51,12 +56,53 @@ function drawROI(){
     canvasCtx.strokeRect(x, y, width, height);
 }
 
+// 건반별 원형 타건 가이드 UI
+function drawKeyTouchCircle(key){
+    if (!key.touchCircle) return;
+
+    const circle = key.touchCircle;
+    const isBlackKey = key.keyType === "black";
+    const keyState = typeof pressAnalyzer !== 'undefined' && pressAnalyzer.getKeyState
+        ? pressAnalyzer.getKeyState(key.keyID)
+        : null;
+    const holdDuration = key.pressed && keyState && keyState.noteOnActive
+        ? performance.now() - keyState.pressStartTime
+        : 0;
+    const holdProgress = Math.min(1, holdDuration / TOUCH_CIRCLE_FULL_HOLD_MS);
+    const fillAlpha = (isBlackKey ? 0.22 : 0.18) + holdProgress * 0.58;
+    const strokeAlpha = 0.85 + holdProgress * 0.15;
+    const fillColor = isBlackKey
+        ? `rgba(0, ${Math.round(255 - holdProgress * 120)}, ${Math.round(255 - holdProgress * 90)}, ${fillAlpha})`
+        : `rgba(0, ${Math.round(120 - holdProgress * 70)}, ${Math.round(255 - holdProgress * 120)}, ${fillAlpha})`;
+
+    canvasCtx.save();
+    canvasCtx.beginPath();
+    canvasCtx.arc(circle.x, circle.y, circle.radius, 0, Math.PI * 2);
+    canvasCtx.fillStyle = fillColor;
+    canvasCtx.strokeStyle = key.pressed ? `rgba(255, 235, 80, ${strokeAlpha})` : "rgba(0, 255, 255, 0.85)";
+    canvasCtx.lineWidth = key.pressed ? 4 : 3;
+    canvasCtx.fill();
+    canvasCtx.stroke();
+    canvasCtx.restore();
+}
+
+function isPointInsideTouchCircle(point, key){
+    if (!key.touchCircle) return false;
+
+    const circle = key.touchCircle;
+    const dx = point.x - circle.x;
+    const dy = point.y - circle.y;
+
+    return (dx * dx + dy * dy) <= (circle.radius * circle.radius);
+}
+
 // ==========================================
 // [3] 심층 타건 감지 및 오디오 데이터 누적 (hand4+7 코어 로직)
 // ==========================================
 function processFingerKeySelections(fingerList, pianoKeys, frameIndex, pressedKeyStates) {
     const results = [];
     const currentTime = performance.now();
+    const currentFrameTouchIDs = new Set(); // 이번 프레임에 터치된 건반 목록
 
     fingerList.forEach(finger => {
         const canvasPoint = monitorToCanvas(finger.x, finger.y);
@@ -76,8 +122,7 @@ function processFingerKeySelections(fingerList, pianoKeys, frameIndex, pressedKe
         // 2. 흑건(black) 우선 판정
         const blackKeys = pianoKeys.filter(key => key.keyType === "black");
         for (const key of blackKeys) {
-            if (canvasPoint.x > key.x && canvasPoint.x < key.x + key.width &&
-                canvasPoint.y > key.y && canvasPoint.y < key.y + key.height) {
+            if (isPointInsideTouchCircle(canvasPoint, key)) {
                 selectedKey = key;
                 break;
             }
@@ -87,8 +132,7 @@ function processFingerKeySelections(fingerList, pianoKeys, frameIndex, pressedKe
         if (!selectedKey) {
             const whiteKeys = pianoKeys.filter(key => key.keyType === "white");
             for (const key of whiteKeys) {
-                if (canvasPoint.x > key.x && canvasPoint.x < key.x + key.width &&
-                    canvasPoint.y > key.y && canvasPoint.y < key.y + key.height) {
+                if (isPointInsideTouchCircle(canvasPoint, key)) {
                     selectedKey = key;
                     break;
                 }
@@ -101,11 +145,26 @@ function processFingerKeySelections(fingerList, pianoKeys, frameIndex, pressedKe
             collisionState = "selected";
             selectedKey.pressed = true;
             selectedKey.activeColor = selectedKey.keyType === "black" ? "rgba(255, 180, 0, 0.95)" : "rgba(255, 215, 0, 0.92)";
+            currentFrameTouchIDs.add(selectedKey.keyID);
+
+            // ★ [수정] 손가락이 원형 터치 영역에 '새로 들어온 순간' 1번만 정답 판정 실행
+            if (!activeTouchKeyIDs.has(selectedKey.keyID)) {
+                if (typeof currentMode !== 'undefined' && currentMode === 'GUIDE' && typeof handleGuideNoteOn === 'function') {
+                    const isCorrectNote = handleGuideNoteOn(selectedKey.pitch);
+                    if (isCorrectNote) {
+                        validlyPressedKeyIDs.add(selectedKey.keyID);
+                    }
+                } else {
+                    validlyPressedKeyIDs.add(selectedKey.keyID);
+                }
+            }
 
             // hand4 고유 타건 심층 감지 데이터 업데이트
             const fingerID = `${finger.handId}_${finger.fingerIndex}`;
             if (!tracker.previousFingerData[fingerID]) tracker.previousFingerData[fingerID] = {};
             const fingerState = tracker.previousFingerData[fingerID];
+            const deltaY = fingerState.previousY === undefined ? 0 : finger.y - fingerState.previousY;
+            let filteredDeltaY = Math.abs(deltaY) < 2 ? 0 : deltaY;
             const deltaTime = fingerState.lastTime ? (currentTime - fingerState.lastTime) / 1000 : 0.016;
 
             const pressDetected = tracker.detectPressByDepth(finger.z, fingerState.previousZ, tracker.pressThreshold);
@@ -113,7 +172,9 @@ function processFingerKeySelections(fingerList, pianoKeys, frameIndex, pressedKe
             const inflectionResult = tracker.detectYInflectionPoint(finger.y, fingerState.previousY, fingerState.previousVelocity || 0, deltaTime);
 
             if (pressDetected && Math.abs(zVelocity) > tracker.velocityThreshold && inflectionResult.inflection) {
-                tracker.generateNoteEvent(selectedKey.keyID, selectedKey.pitch, true, Math.abs(zVelocity));
+                if (validlyPressedKeyIDs.has(selectedKey.keyID)) {
+                    tracker.generateNoteEvent(selectedKey.keyID, selectedKey.pitch, true, Math.abs(zVelocity));
+                }
                 fingerState.isPressed = true;
             }
             if (!pressDetected && fingerState.isPressed) {
@@ -126,16 +187,18 @@ function processFingerKeySelections(fingerList, pianoKeys, frameIndex, pressedKe
             fingerState.previousVelocity = inflectionResult.yVelocity;
             fingerState.lastTime = currentTime;
 
-            // hand7 오디오 엔진 전송용 Map 데이터 누적
-            const previousPressedState = pressedKeyStates.get(selectedKey.keyID);
-            const nextVelocity = previousPressedState ? Math.max(previousPressedState.velocityValue, velocityValue) : velocityValue;
+            // ★ [수정] 자율 모드이거나 가이드 모드에서 정답으로 인정된 건반만 오디오 재생
+            if (validlyPressedKeyIDs.has(selectedKey.keyID)) {
+                const previousPressedState = pressedKeyStates.get(selectedKey.keyID);
+                const nextVelocity = previousPressedState ? Math.max(previousPressedState.velocityValue, velocityValue) : velocityValue;
 
-            pressedKeyStates.set(selectedKey.keyID, {
-                keyId: selectedKey.keyID,
-                noteName: selectedKey.pitch,
-                pressState: true,
-                velocityValue: nextVelocity
-            });
+                pressedKeyStates.set(selectedKey.keyID, {
+                    keyId: selectedKey.keyID,
+                    noteName: selectedKey.pitch,
+                    pressState: true,
+                    velocityValue: nextVelocity
+                });
+            }
         }
 
         results.push({
@@ -144,6 +207,15 @@ function processFingerKeySelections(fingerList, pianoKeys, frameIndex, pressedKe
             collisionState: collisionState
         });
     });
+
+    // 이전 프레임 터치 상태 갱신 및 손가락이 떠난 건반 정리
+    activeTouchKeyIDs.clear();
+    currentFrameTouchIDs.forEach(id => activeTouchKeyIDs.add(id));
+    for (const id of validlyPressedKeyIDs) {
+        if (!currentFrameTouchIDs.has(id)) {
+            validlyPressedKeyIDs.delete(id);
+        }
+    }
 
     return results;
 }
@@ -172,7 +244,7 @@ function onResults(results){
     });
 
     let allHands = [];
-
+    
     if(results.multiHandLandmarks){
         results.multiHandLandmarks.forEach((landmarks, index)=>{
             const filteredLandmarks = landmarks;
@@ -184,11 +256,11 @@ function onResults(results){
 
             let label = results.multiHandedness[index].label;
             label = (label === "Left") ? "Right" : "Left"; // 미러링 반전
-
+            
             const handID = `${label}_${index}`;
             const palmX = (filteredLandmarks[0].x + filteredLandmarks[5].x + filteredLandmarks[9].x + filteredLandmarks[13].x + filteredLandmarks[17].x) / 5;
             const palmY = (filteredLandmarks[0].y + filteredLandmarks[5].y + filteredLandmarks[9].y + filteredLandmarks[13].y + filteredLandmarks[17].y) / 5;
-
+            
             canvasCtx.fillStyle = "yellow";
             canvasCtx.font = "20px Arial";
             const textX = canvasElement.width - (palmX * canvasElement.width);
@@ -203,7 +275,7 @@ function onResults(results){
         // hand4+7: 심층 물리 충돌 및 오디오 로직 처리
         let frameIndex = 0;
         if (typeof nextCollisionFrameIndex !== 'undefined') frameIndex = nextCollisionFrameIndex();
-
+        
         const collisionResults = processFingerKeySelections(fingerList, pianoKeys, frameIndex, pressedKeyStates);
 
         // hand8: PressAnalyzer 프레임 처리 (06.12 이가인 로직)
@@ -213,14 +285,6 @@ function onResults(results){
         if (typeof pianoAudioEngine !== 'undefined' && pianoAudioEngine.syncPressedKeys) {
             pianoAudioEngine.syncPressedKeys(pressedKeyStates);
         }
-
-        // 핑거팁 시각화 렌더링
-        collisionResults.forEach(result => {
-            canvasCtx.beginPath();
-            canvasCtx.arc(result.fingerTipX, result.fingerTipY, 8, 0, Math.PI * 2);
-            canvasCtx.fillStyle = result.collisionState === "selected" ? "cyan" : "rgba(0,255,255,0.35)";
-            canvasCtx.fill();
-        });
 
         window.latestCollisionResults = collisionResults;
     } else {
@@ -235,17 +299,25 @@ function onResults(results){
     // ==========================================
     // 흰 건반 렌더링
     pianoKeys.filter(key => key.keyType === "white").forEach(key => {
-        // pressAnalyzer 색상 우선 적용, 없으면 기존 타건 색상
-        canvasCtx.fillStyle = pressAnalyzer.getVisualColor(key) || (key.pressed ? key.activeColor : key.idleColor);
-        canvasCtx.fillRect(key.x, key.y, key.width, key.height);
 
-        if (typeof pressAnalyzer.drawLongPressGauge === 'function') {
-            pressAnalyzer.drawLongPressGauge(canvasCtx, key);
+        // 기존 색상 로직
+    let keyColor = pressAnalyzer.getVisualColor(key) || (key.pressed ? key.activeColor : key.idleColor);
+    
+    //[추가된 부분] 가이드 모드 타겟 건반 하이라이트 (노란색)
+    if (typeof currentMode !== 'undefined' && currentMode === 'GUIDE' && typeof currentGuideTargetPitch !== 'undefined') {
+        if (key.pitch === currentGuideTargetPitch) {
+            keyColor = '#ffd43b'; // 정답 건반 노란색 칠하기!
         }
+    }
+        // pressAnalyzer 색상 우선 적용, 없으면 기존 타건 색상
+       canvasCtx.fillStyle = keyColor;
+        canvasCtx.fillRect(key.x, key.y, key.width, key.height);
 
         canvasCtx.strokeStyle = "rgba(255,255,255,0.25)";
         canvasCtx.lineWidth = 2;
         canvasCtx.strokeRect(key.x, key.y, key.width, key.height);
+
+        drawKeyTouchCircle(key);
 
         if (isShowLabels) {
             canvasCtx.fillStyle = "black";
@@ -257,12 +329,19 @@ function onResults(results){
 
     // 검은 건반 렌더링
     pianoKeys.filter(key => key.keyType === "black").forEach(key => {
+        // 기존 색상 로직
+    let keyColor = pressAnalyzer.getVisualColor(key) || (key.pressed ? key.activeColor : key.idleColor);
+    
+    //[추가된 부분] 가이드 모드 타겟 건반 하이라이트 (노란색) 
+    if (typeof currentMode !== 'undefined' && currentMode === 'GUIDE' && typeof currentGuideTargetPitch !== 'undefined') {
+        if (key.pitch === currentGuideTargetPitch) {
+            keyColor = '#ffd43b'; 
+        }
+    }
         canvasCtx.fillStyle = pressAnalyzer.getVisualColor(key) || (key.pressed ? key.activeColor : key.idleColor);
         canvasCtx.fillRect(key.x, key.y, key.width, key.height);
 
-        if (typeof pressAnalyzer.drawLongPressGauge === 'function') {
-            pressAnalyzer.drawLongPressGauge(canvasCtx, key);
-        }
+        drawKeyTouchCircle(key);
 
         if (isShowLabels) {
             canvasCtx.fillStyle = "white";

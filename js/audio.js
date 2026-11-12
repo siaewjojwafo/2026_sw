@@ -184,7 +184,7 @@ class PianoAudioEngine {
     // - pressState/velocityValue를 반영
     // - cooldownTime으로 손 떨림 중복 Trigger를 제한
     // - activeAudioPool을 통해 여러 건반을 동시에 재생
-    playKey(key, velocityValue = 0.6){
+   playKey(key, velocityValue = 0.6){
         const context = this.init();
 
         if(!context){
@@ -242,29 +242,74 @@ class PianoAudioEngine {
         };
 
         const gain = context.createGain();
+        let activeSource = null; // 여기서 한 번만 선언
 
-        // [7.1.2] 캐시된 wav가 있으면 BufferSource, 없으면 Oscillator 합성음으로 저지연 출력
-        const source = cachedSound.audioBuffer
-            ? context.createBufferSource()
-            : context.createOscillator();
-
+        // [7.1.2] 캐시된 wav가 있으면 BufferSource, 없으면 고급 피아노 합성음(배음+필터) 출력
         if(cachedSound.audioBuffer){
-            source.buffer = cachedSound.audioBuffer;
+            const bufferSource = context.createBufferSource();
+            bufferSource.buffer = cachedSound.audioBuffer;
+
+            gain.gain.setValueAtTime(0.0001, context.currentTime);
+            gain.gain.exponentialRampToValueAtTime(key.volumeLevel, context.currentTime + 0.01);
+
+            bufferSource.connect(gain);
+            gain.connect(context.destination);
+            bufferSource.start();
+
+            activeSource = bufferSource; // let/var 없이 값만 대입
         }
         else{
-            source.type = "sine";
-            source.frequency.setValueAtTime(cachedSound.frequency, context.currentTime);
+            const baseFreq = cachedSound.frequency;
+            const nowTime = context.currentTime;
+
+            const filter = context.createBiquadFilter();
+            filter.type = "lowpass";
+            filter.frequency.setValueAtTime(baseFreq * 6, nowTime);
+            filter.frequency.exponentialRampToValueAtTime(baseFreq * 1.5, nowTime + 1.2);
+
+            gain.gain.setValueAtTime(0.0001, nowTime);
+            gain.gain.linearRampToValueAtTime(key.volumeLevel * 0.85, nowTime + 0.012);
+            gain.gain.exponentialRampToValueAtTime(key.volumeLevel * 0.35, nowTime + 0.35);
+            gain.gain.exponentialRampToValueAtTime(0.001, nowTime + 2.2);
+
+            filter.connect(gain);
+            gain.connect(context.destination);
+
+            const partials = [
+                { ratio: 1, type: "triangle", weight: 0.65 },
+                { ratio: 2, type: "sine",     weight: 0.25 },
+                { ratio: 3, type: "sine",     weight: 0.10 }
+            ];
+
+            const oscList = partials.map(p => {
+                const osc = context.createOscillator();
+                const partialGain = context.createGain();
+                osc.type = p.type;
+                osc.frequency.setValueAtTime(baseFreq * p.ratio, nowTime);
+                partialGain.gain.setValueAtTime(p.weight, nowTime);
+
+                osc.connect(partialGain);
+                partialGain.connect(filter);
+                osc.start(nowTime);
+                return osc;
+            });
+
+            activeSource = { // let/var 없이 값만 대입
+                stop: function(stopTime) {
+                    oscList.forEach(osc => {
+                        try { osc.stop(stopTime); } catch (e) {}
+                    });
+                },
+                set onended(callback) {
+                    if (oscList[0]) {
+                        oscList[0].onended = callback;
+                    }
+                }
+            };
         }
 
-        gain.gain.setValueAtTime(0.0001, context.currentTime);
-        gain.gain.exponentialRampToValueAtTime(key.volumeLevel, context.currentTime + 0.01);
-
-        source.connect(gain);
-        gain.connect(context.destination);
-        source.start();
-
         const voice = {
-            source: source,
+            source: activeSource,
             gain: gain,
             startedAt: context.currentTime,
             keyId: key.keyID,

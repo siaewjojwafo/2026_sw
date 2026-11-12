@@ -8,6 +8,19 @@ let showLabels = true;       // 라벨 표시 여부 (true 또는 false)
 let lastCanvasWidth = 1000;  // 화면 크기 백업용
 let lastCanvasHeight = 700;  // 화면 크기 백업용
 
+function createTouchCircle(left, top, width, height, keyType) {
+    const isBlackKey = keyType === "black";
+    const radius = isBlackKey
+        ? Math.min(width * 0.32, height * 0.22)
+        : Math.min(width * 0.28, height * 0.12);
+
+    return {
+        x: left + width / 2,
+        y: top + radius + 18,
+        radius: radius
+    };
+}
+
 // 건반 생성 함수
 function createPianoKeys(canvasWidth, canvasHeight){
     pianoKeys.length = 0;
@@ -58,7 +71,7 @@ function createPianoKeys(canvasWidth, canvasHeight){
 
     // 1. 흰 건반 생성
     for(let i = 0; i < whiteKeyCount; i++){ // 2026.06.07 YHW 수정
-        const left = (whiteKeyCount - 1 - i) * whiteKeyWidth;
+        const left = i * whiteKeyWidth;
         const blackBottom = canvasHeight * KEY_BOTTOM_RATIO;
         const blackTop = blackBottom - blackKeyHeight;
         const bottom = blackBottom;
@@ -76,18 +89,18 @@ function createPianoKeys(canvasWidth, canvasHeight){
             y: top,
             width: whiteKeyWidth,
             height: whiteKeyHeight,
-            zIndex: 2,
-            touchPadding: 5,
+            zIndex: 2,                                  
+            touchPadding: 5,                            
             isPressed: false,
             idleColor: "rgba(255, 255, 255, 0.65)",
-            activeColor: "rgba(180, 180, 180, 0.85)"
+            activeColor: "rgba(180, 180, 180, 0.85)",
+            touchCircle: createTouchCircle(left, top, whiteKeyWidth, whiteKeyHeight, "white")
         });
     }
 
     // 2. 검은 건반 생성
     blackKeysData.forEach((key, index) => { // 2026.06.07 YHW 수정
-        const mirroredPos = whiteKeyCount - 2 - key.pos;
-        const left = (mirroredPos + 1) * whiteKeyWidth - blackKeyWidth / 2;
+        const left = (key.pos + 1) * whiteKeyWidth - blackKeyWidth / 2;
         const whiteTop = canvasHeight * KEY_BOTTOM_RATIO;
         const right = left + blackKeyWidth;
         const bottom = canvasHeight * KEY_BOTTOM_RATIO;
@@ -103,11 +116,12 @@ function createPianoKeys(canvasWidth, canvasHeight){
             y: top,
             width: blackKeyWidth,
             height: blackKeyHeight,
-            zIndex: 2,
-            touchPadding: 3,
-            isPressed: false,
+            zIndex: 2,                                  
+            touchPadding: 3,                            
+            isPressed: false,                           
             idleColor: "rgba(0, 0, 0, 0.65)",
-            activeColor: "rgba(139, 0, 0, 0.95)"
+            activeColor: "rgba(139, 0, 0, 0.95)",
+            touchCircle: createTouchCircle(left, top, blackKeyWidth, blackKeyHeight, "black")
         });
     });
 
