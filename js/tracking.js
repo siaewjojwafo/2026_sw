@@ -41,7 +41,7 @@ class TrackingManager {
 
         this.FrameLatency = 0;
 
-        // SRS 6.~ 변수
+         // SRS 6.~ 변수
 
 
         this.previousFingerData = {};
@@ -332,7 +332,7 @@ class TrackingManager {
             currentTime;
 
     }
-    //====================
+ //====================
     //srs6번추가
     //====================
 
@@ -497,6 +497,5 @@ class TrackingManager {
 
         return eventObject;
     }
-
 
 }

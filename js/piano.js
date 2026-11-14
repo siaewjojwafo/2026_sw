@@ -8,6 +8,19 @@ let showLabels = true;       // 라벨 표시 여부 (true 또는 false)
 let lastCanvasWidth = 1000;  // 화면 크기 백업용
 let lastCanvasHeight = 700;  // 화면 크기 백업용
 
+function createTouchCircle(left, top, width, height, keyType) {
+    const isBlackKey = keyType === "black";
+    const radius = isBlackKey
+        ? Math.min(width * 0.32, height * 0.22)
+        : Math.min(width * 0.28, height * 0.12);
+
+    return {
+        x: left + width / 2,
+        y: top + radius + 18,
+        radius: radius
+    };
+}
+
 // 건반 생성 함수
 function createPianoKeys(canvasWidth, canvasHeight){
     pianoKeys.length = 0;
@@ -19,37 +32,33 @@ function createPianoKeys(canvasWidth, canvasHeight){
     let midiNumbers = [];
     let blackKeysData = [];
 
-    // 06.07 YHW 수정
     if (currentOctave === 1) {
-        whiteNotes = ["C5", "B4", "A4", "G4", "F4", "E4", "D4", "C4"];
-        midiNumbers = [72, 71, 69, 67, 65, 64, 62, 60];
-
+        // 1옥타브 세팅 (가온 다 C4 ~ C5)
+        whiteNotes = ["C4", "D4", "E4", "F4", "G4", "A4", "B4", "C5"];
+        midiNumbers = [60, 62, 64, 65, 67, 69, 71, 72];
         blackKeysData = [
-            { note: "A#4", midi: 70, pos: 5 },
-            { note: "G#4", midi: 68, pos: 4 },
-            { note: "F#4", midi: 66, pos: 3 },
+            { note: "C#4", midi: 61, pos: 0 },
             { note: "D#4", midi: 63, pos: 1 },
-            { note: "C#4", midi: 61, pos: 0 }
+            { note: "F#4", midi: 66, pos: 3 },
+            { note: "G#4", midi: 68, pos: 4 },
+            { note: "A#4", midi: 70, pos: 5 }
         ];
     } else {
-          whiteNotes = [
-              "C6", "B5", "A5", "G5", "F5", "E5", "D5", "C5", "B4", "A4", "G4", "F4", "E4", "D4", "C4"
-          ];
-          midiNumbers = [
-              84, 83, 81, 79, 77, 76, 74, 72, 71, 69, 67, 65, 64, 62, 60
-          ];
-          blackKeysData = [
-              { note: "A#5", midi: 82, pos: 12 },
-              { note: "G#5", midi: 80, pos: 11 },
-              { note: "F#5", midi: 78, pos: 10 },
-              { note: "D#5", midi: 75, pos: 8 },
-              { note: "C#5", midi: 73, pos: 7 },
-              { note: "A#4", midi: 70, pos: 5 },
-              { note: "G#4", midi: 68, pos: 4 },
-              { note: "F#4", midi: 66, pos: 3 },
-              { note: "D#4", midi: 63, pos: 1 },
-              { note: "C#4", midi: 61, pos: 0 }
-          ];
+        // 2옥타브 세팅 (C4 ~ C6 전개)
+        whiteNotes = ["C4", "D4", "E4", "F4", "G4", "A4", "B4", "C5", "D5", "E5", "F5", "G5", "A5", "B5", "C6"];
+        midiNumbers = [60, 62, 64, 65, 67, 69, 71, 72, 74, 76, 77, 79, 81, 83, 84];
+        blackKeysData = [
+            { note: "C#4", midi: 61, pos: 0 },
+            { note: "D#4", midi: 63, pos: 1 },
+            { note: "F#4", midi: 66, pos: 3 },
+            { note: "G#4", midi: 68, pos: 4 },
+            { note: "A#4", midi: 70, pos: 5 },
+            { note: "C#5", midi: 73, pos: 7 },
+            { note: "D#5", midi: 75, pos: 8 },
+            { note: "F#5", midi: 78, pos: 10 },
+            { note: "G#5", midi: 80, pos: 11 },
+            { note: "A#5", midi: 82, pos: 12 }
+        ];
     }
 
     const whiteKeyCount = whiteNotes.length;
@@ -61,14 +70,14 @@ function createPianoKeys(canvasWidth, canvasHeight){
     const blackKeyHeight = whiteKeyHeight * blackKeyHeightRatio;
 
     // 1. 흰 건반 생성
-    for(let i = 0; i < whiteKeyCount; i++){
-        // 2026.06.07 YHW 수정
-        const left = (whiteKeyCount - 1 - i) * whiteKeyWidth;
+    for(let i = 0; i < whiteKeyCount; i++){ // 2026.06.07 YHW 수정
+        const left = i * whiteKeyWidth;
         const blackBottom = canvasHeight * KEY_BOTTOM_RATIO;
         const blackTop = blackBottom - blackKeyHeight;
         const bottom = blackBottom;
         const top = bottom - whiteKeyHeight;
         const right = left + whiteKeyWidth;
+
 
         pianoKeys.push({
             keyID: i,
@@ -84,15 +93,14 @@ function createPianoKeys(canvasWidth, canvasHeight){
             touchPadding: 5,                            
             isPressed: false,
             idleColor: "rgba(255, 255, 255, 0.65)",
-            activeColor: "rgba(180, 180, 180, 0.85)"
+            activeColor: "rgba(180, 180, 180, 0.85)",
+            touchCircle: createTouchCircle(left, top, whiteKeyWidth, whiteKeyHeight, "white")
         });
     }
 
     // 2. 검은 건반 생성
-    blackKeysData.forEach((key, index) => {
-        // 2026.06.07 YHW 수정
-        const mirroredPos = whiteKeyCount - 2 - key.pos;
-        const left = (mirroredPos + 1) * whiteKeyWidth - blackKeyWidth / 2;
+    blackKeysData.forEach((key, index) => { // 2026.06.07 YHW 수정
+        const left = (key.pos + 1) * whiteKeyWidth - blackKeyWidth / 2;
         const whiteTop = canvasHeight * KEY_BOTTOM_RATIO;
         const right = left + blackKeyWidth;
         const bottom = canvasHeight * KEY_BOTTOM_RATIO;
@@ -112,11 +120,16 @@ function createPianoKeys(canvasWidth, canvasHeight){
             touchPadding: 3,                            
             isPressed: false,                           
             idleColor: "rgba(0, 0, 0, 0.65)",
-            activeColor: "rgba(139, 0, 0, 0.95)"
+            activeColor: "rgba(139, 0, 0, 0.95)",
+            touchCircle: createTouchCircle(left, top, blackKeyWidth, blackKeyHeight, "black")
         });
     });
 
     window.keyCount = pianoKeys.length;
+}
+    // [SRS 7.1.1] 건반 생성/변경 시 각 건반 음원 매핑과 캐시 상태를 갱신
+    if(typeof pianoAudioEngine !== "undefined"){
+        pianoAudioEngine.preload(pianoKeys);
 }
 
 // [SRS 4.4 INTERFACE FUNCTIONS] HTML 조작과 연결될 환경 변경 함수들
@@ -124,6 +137,9 @@ function changeOctaveRange(octave) {
     currentOctave = octave;
     // 옥타브가 바뀌면 기존 화면 크기를 기반으로 건반을 새로 동적 생성합니다.
     createPianoKeys(lastCanvasWidth, lastCanvasHeight);
+    if (typeof pressAnalyzer !== "undefined") {
+        pressAnalyzer.reset();  //이가인 06.12 추가
+    }
     console.log(`[SRS 4.4] 건반 개수 조절 완료: ${octave}옥타브`);
 }
 
