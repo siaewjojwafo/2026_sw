@@ -430,8 +430,12 @@ const pianoAudioEngine = new PianoAudioEngine();
 });
 
 const pedalCodes = { KeyQ: "soft", KeyW: "sostenuto", KeyE: "sustain" };
-const isEditableTarget = target => target instanceof Element &&
-    (target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName));
+const isEditableTarget = target => {
+    if(!(target instanceof Element)) return false;
+    if(target.isContentEditable || /^(TEXTAREA|SELECT)$/.test(target.tagName)) return true;
+    if(target.tagName !== "INPUT") return false;
+    return /^(text|search|url|tel|email|password|number)$/i.test(target.type);
+};
 window.addEventListener("keydown", event => {
     const pedal = pedalCodes[event.code];
     if(!pedal || event.repeat || event.ctrlKey || event.altKey || event.metaKey || isEditableTarget(event.target)) return;
